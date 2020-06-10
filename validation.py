@@ -25,7 +25,7 @@ def ffprobe(ffprobe_path, filepath):
     cmd_format = '{} -v quiet -print_format json -show_format -show_streams {}'
     cmd = cmd_format.format(ffprobe_path, filepath).split()
     stdout, stderr, retcode = run_command(cmd)
-    return json.loads(stdout)
+    return json.loads(stdout.decode('utf-8'))
 
 
 def validate_audio(audio_filepath, audio_info, end_past_video_end=False):

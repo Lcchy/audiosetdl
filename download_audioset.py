@@ -300,11 +300,11 @@ def ffmpeg(ffmpeg_path, input_path, output_path, input_args=None,
 
         except FfmpegValidationError as e:
             last_err = e
-            if attempt < num_retries - 1 and os.path.exists(output_path):
-                os.remove(output_path)
+            #if attempt < num_retries - 1 and os.path.exists(output_path):
+                #os.remove(output_path)
             # Retry if the output did not validate
-            LOGGER.info('ffmpeg output file "{}" did not validate: {}. Retrying...'.format(output_path, e))
-            continue
+            LOGGER.info('ffmpeg output file "{}" did not validate: {}. NOT Retrying...'.format(output_path, e))
+            break
     else:
         error_msg = 'Maximum number of retries ({}) reached. Could not obtain inputs at {}. Error: {}'
         LOGGER.error(error_msg.format(num_retries, input_path, str(last_err)))
@@ -442,7 +442,7 @@ def download_yt_video(ytid, ts_start, ts_end, output_dir, ffmpeg_path, ffprobe_p
     audio_output_args = ['-t', str(duration),
                          '-ar', str(audio_sample_rate),
                          '-vn',
-                         '-ac', str(audio_info['channels']),
+                         '-ac', str(1),
                          '-sample_fmt', 's{}'.format(audio_bit_depth),
                          '-f', audio_format,
                          '-acodec', audio_codec]
@@ -458,6 +458,7 @@ def download_yt_video(ytid, ts_start, ts_end, output_dir, ffmpeg_path, ffprobe_p
         video_output_args = ['-t', str(duration),
                              '-f', video_format,
                              '-r', str(video_frame_rate),
+                             '-an',
                              '-vcodec', video_codec]
         # Suppress audio stream if we don't want to audio in the video
         if video_mode in ('bestvideo', 'bestvideoaudionoaudio'):
@@ -480,6 +481,7 @@ def download_yt_video(ytid, ts_start, ts_end, output_dir, ffmpeg_path, ffprobe_p
                              '-crf', '0',
                              '-preset', 'medium',
                              '-r', str(video_frame_rate),
+                             '-s 640x480',
                              '-an',
                              '-vcodec', video_codec]
 
@@ -487,32 +489,32 @@ def download_yt_video(ytid, ts_start, ts_end, output_dir, ffmpeg_path, ffprobe_p
                input_args=video_input_args, output_args=video_output_args,
                num_retries=num_retries)
 
-        # Merge the best lossless video with the lossless audio, and compress
-        merge_video_filepath = os.path.splitext(video_filepath)[0] \
-                               + '_merge.' + video_format
-        video_input_args = ['-n']
-        video_output_args = ['-f', video_format,
-                             '-r', str(video_frame_rate),
-                             '-vcodec', video_codec,
-                             '-acodec', 'aac',
-                             '-ar', str(audio_sample_rate),
-                             '-ac', str(audio_info['channels']),
-                             '-strict', 'experimental']
+        # # Merge the best lossless video with the lossless audio, and compress
+        # merge_video_filepath = os.path.splitext(video_filepath)[0] \
+        #                        + '_merge.' + video_format
+        # video_input_args = ['-n']
+        # video_output_args = ['-f', video_format,
+        #                      '-r', str(video_frame_rate),
+        #                      '-vcodec', video_codec,
+        #                      '-acodec', 'aac',
+        #                      '-ar', str(audio_sample_rate),
+        #                      '-ac', str(audio_info['channels']),
+        #                      '-strict', 'experimental']
 
-        ffmpeg(ffmpeg_path, [video_filepath, audio_filepath], merge_video_filepath,
-               input_args=video_input_args, output_args=video_output_args,
-               num_retries=num_retries, validation_callback=validate_video,
-               validation_args={'ffprobe_path': ffprobe_path,
-                                'video_info': video_info,
-                                'end_past_video_end': end_past_video_end})
+        # ffmpeg(ffmpeg_path, [video_filepath, audio_filepath], merge_video_filepath,
+        #        input_args=video_input_args, output_args=video_output_args,
+        #        num_retries=num_retries, validation_callback=validate_video,
+        #        validation_args={'ffprobe_path': ffprobe_path,
+        #                         'video_info': video_info,
+        #                         'end_past_video_end': end_past_video_end})
 
-        # Remove the original video file and replace with the merged version
-        if os.path.exists(merge_video_filepath):
-            os.remove(video_filepath)
-            shutil.move(merge_video_filepath, video_filepath)
-        else:
-            error_msg = 'Cannot find merged video for {} ({} - {}) at {}'
-            LOGGER.error(error_msg.format(ytid, ts_start, ts_end, merge_video_filepath))
+        # # Remove the original video file and replace with the merged version
+        # if os.path.exists(merge_video_filepath):
+        #     os.remove(video_filepath)
+        #     shutil.move(merge_video_filepath, video_filepath)
+        # else:
+        #     error_msg = 'Cannot find merged video for {} ({} - {}) at {}'
+        #     LOGGER.error(error_msg.format(ytid, ts_start, ts_end, merge_video_filepath))
 
     LOGGER.info('Downloaded video {} ({} - {})'.format(ytid, ts_start, ts_end))
 
