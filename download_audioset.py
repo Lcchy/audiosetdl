@@ -15,6 +15,7 @@ import sys
 import traceback as tb
 import urllib.request
 from functools import partial
+import time
 
 import multiprocessing_logging
 import pafy
@@ -28,6 +29,9 @@ from validation import validate_audio, validate_video
 
 LOGGER = logging.getLogger('audiosetdl')
 LOGGER.setLevel(logging.DEBUG)
+
+LOCK = mp.Lock()
+
 
 EVAL_URL = 'http://storage.googleapis.com/us_audioset/youtube_corpus/v1/csv/eval_segments.csv'
 BALANCED_TRAIN_URL = 'http://storage.googleapis.com/us_audioset/youtube_corpus/v1/csv/balanced_train_segments.csv'
@@ -251,8 +255,14 @@ def ffmpeg(ffmpeg_path, input_path, output_path, input_args=None,
     for attempt in range(num_retries):
         try:
             args = [ffmpeg_path] + input_args + inputs + output_args + [output_path, '-loglevel', log_level]
+            t = time.time()
+            # Take up the lock for 1 s in order to create a timed queue of calls between threads
+            # in order to not get Ip banned by Youtube (HTTP ERROR 429)
+            LOCK.acquire()
+            time.sleep(1.5)
+            LOCK.release()
             run_command(args)
-
+            print("TIME :", int(time.time() - t), int(time.time()))
             # Validate if a callback was passed in
             if validation_callback is not None:
                 validation_args = validation_args or {}
